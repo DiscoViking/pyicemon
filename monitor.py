@@ -9,7 +9,6 @@ import logging
 
 log = logging.getLogger("monitor")
 log.addHandler(logging.NullHandler())
-logging.basicConfig()
 
 
 class Monitor(object):
@@ -32,9 +31,16 @@ class Monitor(object):
         self.socket.connect((host, port))
         self.server_host = host
         self.server_port = port
+        log.debug("Sending protocol version 22")
+        self.socket.send("\x22\x00\x00\x00")
+        log.debug("Receiving protocol version")
+        assert(self.socket.recv(4) == "\x22\x00\x00\x00")
+        log.debug("Sending protocol version 22")
+        self.socket.send("\x22\x00\x00\x00")
 
     def send(self, msg):
         print("Sending:\n{0}".format(':'.join(x.encode('hex') for x in msg)))
+        self.socket.send(struct.pack("!L", len(msg)))
         totalsent = 0
         while totalsent < len(msg):
             sent = self.socket.send(msg[totalsent:])
@@ -71,42 +77,31 @@ class Monitor(object):
         return s
 
     def get_message(self):
-        common = self.receive(8)
-        assert(len(common) == 8)
+        length, msg_type = struct.unpack("!LL", self.receive(8))
 
-        (host_id, msg_type) = struct.unpack("!LL", common)
+        log.debug("Receiving message of type {0}, length {1}".format(msg_type,
+                                                                     length))
+
+        msg = self.receive(length-4)
+
         if msg_type not in self.msg_types:
             log.error("Unknown message type: {0}".format(msg_type))
 
         msg_cls = self.msg_types[msg_type]
-        header = self.receive(msg_cls.hdr_len())
-        assert(len(header) == msg_cls.hdr_len())
 
-        body = ""
-        if msg_cls.has_body:
-            body = self.receive_until_null()
-
-        print("Received message of length: {0}".format(len(common) +
-                                                          len(header) +
-                                                          len(body)))
-
-        return msg_cls.unpack(common + header + body)
+        return msg_cls.unpack(msg)
 
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.DEBUG)
+
     host, port = sys.argv[1], sys.argv[2]
     mon = Monitor()
     mon.connect(host, int(port))
 
-    # Protocol Negotiation
-    mon.send("\x1d\x00\x00\x00")
-    mon.receive(4)
-    mon.send("\x1d\x00\x00\x00")
-    mon.receive(4)
-
     # Login
-    #mon.send("\x00\x00\x00\x04\x00\x00\x00\x52")
-    mon.send(messages.LoginMessage(4).pack())
+    mon.send(messages.LoginMessage().pack())
+    mon.receive(4)
     while True:
         msg = mon.get_message()
         print(msg)
