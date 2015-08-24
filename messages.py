@@ -11,11 +11,10 @@ class Message(object):
 # Send Monitor -> Scheduler to register for notifications.
 # Format is <host_id><msg_type>
 class LoginMessage(Message):
-    byte_format = "!L"
     msg_type = 0x52
 
     def pack(self):
-        return struct.pack(self.byte_format, self.msg_type)
+        return ""
 
     @classmethod
     def unpack(cls, string):
@@ -31,7 +30,6 @@ class LoginMessage(Message):
 # Note:  Still don't know what value1/2 mean.
 class StatsMessage(Message):
     byte_format = "!LL"
-    msg_type = 0x57
     has_body = True
 
     def __init__(self, host_id, value2, body):
@@ -48,7 +46,6 @@ class StatsMessage(Message):
 
     def pack(self):
         return (
-            struct.pack("!L", self.msg_type) +
             struct.pack(self.byte_format,
                         self.host_id,
                         self.value2) +
@@ -87,7 +84,6 @@ class LocalJobBeginMessage(Message):
 
     def pack(self):
         return (
-            struct.pack("!L", self.msg_type) +
             struct.pack(self.byte_format,
                         self.job_id,
                         self.time,

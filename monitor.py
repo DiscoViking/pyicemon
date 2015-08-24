@@ -38,15 +38,19 @@ class Monitor(object):
         log.debug("Sending protocol version 22")
         self.socket.send("\x22\x00\x00\x00")
 
-    def send(self, msg):
-        print("Sending:\n{0}".format(':'.join(x.encode('hex') for x in msg)))
-        self.socket.send(struct.pack("!L", len(msg)))
+    def send(self, s):
+        print("Sending:\n{0}".format(':'.join(x.encode('hex') for x in s)))
         totalsent = 0
-        while totalsent < len(msg):
-            sent = self.socket.send(msg[totalsent:])
+        while totalsent < len(s):
+            sent = self.socket.send(s[totalsent:])
             if sent == 0:
                 return
             totalsent += sent
+
+    def send_message(self, msg):
+        msg_string = msg.pack()
+        self.send(struct.pack("!LL", len(msg_string), msg.msg_type) +
+                  msg_string)
 
     def recv_chunk(self):
         msg = self.socket.recv(self.CHUNK_SIZE)
@@ -100,7 +104,7 @@ if __name__ == "__main__":
     mon.connect(host, int(port))
 
     # Login
-    mon.send(messages.LoginMessage().pack())
+    mon.send_message(messages.LoginMessage())
     mon.receive(4)
     while True:
         msg = mon.get_message()
