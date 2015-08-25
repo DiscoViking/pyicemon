@@ -14,6 +14,12 @@ class Publisher(object):
         self.lock = threading.RLock()
         self.timer = None
         self.ws_server = WebsocketServer(9999, host="0.0.0.0")
+
+        def send_to_client(client, server):
+            with self.lock:
+                server.send_message(client, self.frame)
+
+        self.ws_server.set_fn_new_client(send_to_client)
         t = threading.Thread(target=self.ws_server.run_forever)
         t.daemon = True
         t.start()
