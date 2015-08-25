@@ -14,6 +14,7 @@ log.addHandler(logging.NullHandler())
 class Monitor(object):
     msg_types = {
         0x52: messages.LoginMessage,
+        0x53: messages.GetCSMessage,
         0x56: messages.LocalJobBeginMessage,
         0x57: messages.StatsMessage,
     }
@@ -39,7 +40,7 @@ class Monitor(object):
         self.socket.send("\x22\x00\x00\x00")
 
     def send(self, s):
-        print("Sending:\n{0}".format(':'.join(x.encode('hex') for x in s)))
+        log.debug("Sending:\n{0}".format(':'.join(x.encode('hex') for x in s)))
         totalsent = 0
         while totalsent < len(s):
             sent = self.socket.send(s[totalsent:])
@@ -61,7 +62,7 @@ class Monitor(object):
         while len(self.input_buf) < n:
             self.recv_chunk()
         s, self.input_buf = self.input_buf[:n], self.input_buf[n:]
-        print("Received:\n{0}".format(':'.join(x.encode('hex') for x in s)))
+        log.debug("Received:\n{0}".format(':'.join(x.encode('hex') for x in s)))
         return s
 
     def receive_until_null(self):
@@ -97,7 +98,7 @@ class Monitor(object):
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.DEBUG)
+    logging.basicConfig(level=logging.ERROR)
 
     host, port = sys.argv[1], sys.argv[2]
     mon = Monitor()
