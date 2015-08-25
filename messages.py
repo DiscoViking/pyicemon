@@ -1,5 +1,11 @@
 import struct
+import logging
+
 from collections import OrderedDict
+
+log = logging.getLogger(__name__)
+log.addHandler(logging.NullHandler())
+
 
 # Abstract message base class.
 class Message(object):
@@ -7,7 +13,7 @@ class Message(object):
 
     @classmethod
     def unpack_string(cls, s):
-        length = struct.unpack("!L", s[:4])[0]
+        (length,) = struct.unpack("!L", s[:4])
         string = s[4:length + 4 - 1]
         s = s[length + 4:]
         return string, s
@@ -32,9 +38,9 @@ class LoginMessage(Message):
 
 # Stats message.
 # Send Scheduler -> Monitor to report detailed info for one CS.
-# Format is <host_id><msg_type><value1><value2>[body]
-# Note:  Still don't know what value1/2 mean.
+# Format is <host_id>[body]
 class StatsMessage(Message):
+    msg_type = 0x57
 
     def __init__(self, host_id, body):
         self.host_id = host_id
@@ -59,7 +65,7 @@ class StatsMessage(Message):
 
     @classmethod
     def unpack(cls, string):
-        (host_id) = struct.unpack("!L", string[:4])
+        (host_id,) = struct.unpack("!L", string[:4])
 
         body, remainder = cls.unpack_string(string[4:])
         assert(not remainder)
@@ -75,7 +81,7 @@ class StatsMessage(Message):
 # Format is <job_id><time><host_id>[filename]
 class LocalJobBeginMessage(Message):
     byte_format = "!LLL"
-    msg_type = 0x57
+    msg_type = 0x56
 
     def __init__(self, job_id, host_id, time, filename):
         self.job_id = job_id
@@ -94,7 +100,7 @@ class LocalJobBeginMessage(Message):
 
     @classmethod
     def unpack(cls, string):
-        hdr_len = cls.hdr_len()
+        hdr_len = struct.calcsize(cls.byte_format)
 
         (job_id,
          time,
@@ -141,3 +147,21 @@ class GetCSMessage(Message):
     def __str__(self):
         return "[GetCS] lang = {0}, job_id = {1}, client_id = {2}\n{3}".format(
             self.lang, self.job_id, self.client_id, self.filename)
+
+
+msg_types = {
+    LoginMessage.msg_type: LoginMessage,
+    StatsMessage.msg_type: StatsMessage,
+    LocalJobBeginMessage.msg_type: LocalJobBeginMessage,
+    GetCSMessage.msg_type: GetCSMessage,
+}
+
+
+def unpack(s):
+    (msg_type,) = struct.unpack("!L", s[:4])
+    if msg_type not in msg_types:
+        log.warn("Unknown message type {0}. Discarding.".format(msg_type))
+        return None
+
+    msg_cls = msg_types[msg_type]
+    return msg_cls.unpack(s[4:])

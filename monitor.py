@@ -12,13 +12,6 @@ log.addHandler(logging.NullHandler())
 
 
 class Monitor(object):
-    msg_types = {
-        0x52: messages.LoginMessage,
-        0x53: messages.GetCSMessage,
-        0x56: messages.LocalJobBeginMessage,
-        0x57: messages.StatsMessage,
-    }
-
     CHUNK_SIZE = 2048
     input_buf = ""
 
@@ -82,23 +75,17 @@ class Monitor(object):
         return s
 
     def get_message(self):
-        length, msg_type = struct.unpack("!LL", self.receive(8))
+        length = struct.unpack("!L", self.receive(4))[0]
 
-        log.debug("Receiving message of type {0}, length {1}".format(msg_type,
-                                                                     length))
+        log.debug("Receiving message of length {0}".format(length))
 
-        msg = self.receive(length-4)
+        msg = self.receive(length)
 
-        if msg_type not in self.msg_types:
-            log.error("Unknown message type: {0}".format(msg_type))
-
-        msg_cls = self.msg_types[msg_type]
-
-        return msg_cls.unpack(msg)
+        return messages.unpack(msg)
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.ERROR)
+    logging.basicConfig(level=logging.DEBUG)
 
     host, port = sys.argv[1], sys.argv[2]
     mon = Monitor()
@@ -110,3 +97,4 @@ if __name__ == "__main__":
     while True:
         msg = mon.get_message()
         print(msg)
+        print("")
