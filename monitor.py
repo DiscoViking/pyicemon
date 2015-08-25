@@ -85,7 +85,7 @@ class Monitor(object):
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.DEBUG)
+    logging.basicConfig(level=logging.WARN)
 
     host, port = sys.argv[1], sys.argv[2]
     mon = Monitor()

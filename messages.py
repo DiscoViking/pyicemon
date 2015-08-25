@@ -118,6 +118,9 @@ class LocalJobBeginMessage(Message):
 
 
 # GetCS message.
+# Indicates that a client has requested a CS to build the mentioned file.
+# Marks the creation of a new job.
+# Format is [filename]<lang><job_id><client_id>
 class GetCSMessage(Message):
     msg_type = 0x53
 
@@ -136,7 +139,6 @@ class GetCSMessage(Message):
     @classmethod
     def unpack(cls, string):
         filename, string = cls.unpack_string(string)
-        print(filename, ":".join(c for c in string))
 
         (lang,
          job_id,
@@ -149,11 +151,87 @@ class GetCSMessage(Message):
             self.lang, self.job_id, self.client_id, self.filename)
 
 
+# JobBegin message.
+# Indicates that a compile job is starting on a host.
+# Format is <job_id><time><host_id>
+class JobBeginMessage(Message):
+    msg_type = 0x54
+
+    def __init__(self, job_id, time, host_id):
+        self.job_id = job_id
+        self.time = time
+        self.host_id = host_id
+
+    def pack(self):
+        return struct.pack("!LLL", self.job_id, self.time, self.host_id)
+
+    @classmethod
+    def unpack(cls, string):
+        (job_id,
+         time,
+         host_id) = struct.unpack("!LLL", string)
+
+        return JobBeginMessage(job_id, time, host_id)
+
+    def __str__(self):
+        return "[JobBegin] job_id = {0}, host_id = {1}, time = {2}".format(
+            self.job_id, self.host_id, self.time)
+
+
+# JobDone message.
+# Indicates that a compile job is finished.
+# Format is <job_id><exit_code><real_ms><user_ms><sys_ms><pfaults>
+#           <in_compressed><in_uncompressed><out_compressed><out_uncompressed>
+#           <flags>
+class JobDoneMessage(Message):
+    msg_type = 0x55
+    byte_format = "!LLLLLLLLLLL"
+
+    def __init__(self, job_id, rc, real_ms, user_ms, sys_ms,
+                 pfaults, in_comp, in_uncomp, out_comp, out_uncomp, flags):
+        self.job_id = job_id
+        self.rc = rc
+        self.real_ms = real_ms
+        self.user_ms = user_ms
+        self.sys_ms = sys_ms
+        self.pfaults = pfaults
+        self.in_comp = in_comp
+        self.in_uncomp = in_uncomp
+        self.out_comp = out_comp
+        self.out_uncomp = out_uncomp
+        self.flags = flags
+
+    def pack(self):
+        return struct.pack(self.byte_format, self.job_id, self.rc,
+                           self.real_ms, self.user_ms, self.sys_ms,
+                           self.pfaults, self.in_comp, self.in_uncomp,
+                           self.out_comp, self.out_uncomp, self.flags)
+
+    @classmethod
+    def unpack(cls, string):
+        (job_id, rc,
+         real_ms, user_ms, sys_ms,
+         pfaults, in_comp, in_uncomp,
+         out_comp, out_uncomp, flags) = struct.unpack(cls.byte_format, string)
+
+        return JobDoneMessage(job_id, rc, real_ms, user_ms, sys_ms,
+                              pfaults, in_comp, in_uncomp,
+                              out_comp, out_uncomp, flags)
+
+    def __str__(self):
+        return (
+            "[JobDone] job_id = {m.job_id}, rc = {m.rc}\n"
+            "Time: real={m.real_ms}, user={m.user_ms}, sys={m.sys_ms}\n"
+        ).format(m=self)
+
+
 msg_types = {
     LoginMessage.msg_type: LoginMessage,
     StatsMessage.msg_type: StatsMessage,
     LocalJobBeginMessage.msg_type: LocalJobBeginMessage,
     GetCSMessage.msg_type: GetCSMessage,
+    JobBeginMessage.msg_type: JobBeginMessage,
+    JobDoneMessage.msg_type: JobDoneMessage,
 }
 
 
