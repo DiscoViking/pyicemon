@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<style>
+.node {
+  stroke: #fff;
+  stroke-width: 1.5px;
+}
+.link {
+  fill: none;
+  stroke: #bbb;
+}
+</style>
+<body>
+
+<div id="graph"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/3.5.5/d3.min.js"></script>
+
+<script>
+
+var frame_length_ms = 100;
+var width = 1600;
+var height = 800;
+
+function colourFromCPUUsage(usage) {
+  // Load is a percentage.
+  usage = usage / 100;
+
+  // Now usage is between 0 and 1, so calculation is easy.
+  var r = Math.floor(255 * usage);
+  var b = 255 - r;
+  var g = 150 - Math.floor(100 * usage);
+  var c = "rgb(" + r + "," + g + "," + b + ")";
+  return c;
+}
+
+function myGraph(el) {
+
+    // Add and remove elements on the graph object
+    this.addNode = function (id, do_update, load) {
+        if (typeof(do_update)==='undefined') do_update = true;
+        nodes.push({"id":id,
+                    "health": 100,
+                    "active": true,
+                    "x": width/2 - 100 + (200 * Math.random()),
+                    "y": height/2 - 100 + (200 * Math.random()),
+                    "load": load});
+        if (do_update) update();
+    }
+
+    this.removeNode = function (id, do_update) {
+        var i = 0;
+        var n = this.findNode(id);
+        if (typeof(do_update)==='undefined') do_update = true;
+
+        while (i < links.length) {
+            if ((links[i]['source'] === n)||(links[i]['target'] == n)) links.splice(i,1);
+            else i++;
+        }
+        var index = findNodeIndex(id);
+        if(index !== undefined) {
+            nodes.splice(index, 1);
+            if (do_update) update();
+        }
+    }
+
+    this.addLink = function (sourceId, targetId, value, do_update) {
+        var sourceNode = this.findNode(sourceId);
+        var targetNode = this.findNode(targetId);
+        if (typeof(do_update)==='undefined') do_update = true;
+
+        if((sourceNode !== undefined) && (targetNode !== undefined)) {
+            links.push({"source": sourceNode,
+                        "target": targetNode,
+                        "value": value});
+            if (do_update) update();
+        }
+    }
+
+    this.findNode = function (id) {
+        for (var i=0; i < nodes.length; i++) {
+            if (nodes[i].id === id)
+                return nodes[i]
+        };
+    }
+
+    var findNodeIndex = function (id) {
+        for (var i=0; i < nodes.length; i++) {
+            if (nodes[i].id === id)
+                return i
+        };
+    }
+
+    // set up the D3 visualisation in the specified element
+    var w = width;
+        h = height;
+
+    var vis = this.vis = d3.select(el).append("svg:svg")
+        .attr("width", w)
+        .attr("height", h);
+
+    var link_layer = this.link_layer = vis.append("g").attr("class", "links");
+    var node_layer = this.node_layer = vis.append("g").attr("class", "nodes");
+
+    // label to show data about the frame
+    var index = this.index = 0;
+    var timestamp = this.timestamp = 0;
+    var label = this.label = vis.append("text")
+        .attr("x", "20")
+        .attr("y", "20")
+        .text("Frame 0: <timestamp>");
+
+    var force = d3.layout.force()
+        .gravity(.04)
+        .distance(150)
+        .charge(function(d) { return -6 * d.health; })
+        .friction(0.8)
+        .linkStrength(0.5)
+        .size([w, h]);
+
+    var nodes = force.nodes(),
+        links = force.links();
+
+    var update = function () {
+
+        var link = link_layer.selectAll("line.link")
+            .data(links, function(d) { return d.source.id + "-" + d.target.id; });
+
+        link.enter().insert("line")
+            .attr("class", "link")
+            .style("stroke", "rgb(200,50,50)")
+            .attr("stroke-opacity", 0.5)
+            .attr("stroke-width", function(d) {return Math.sqrt(d.value);});
+
+        link.append("title").text(function(d) {return d.value;});
+
+        link.exit().remove();
+
+        var node = node_layer.selectAll("g.node")
+            .data(nodes, function(d) { return d.id;});
+
+        var nodeEnter = node.enter().append("g")
+            .attr("class", "node")
+            .call(force.drag);
+
+        nodeEnter.append("circle")
+          .attr("r",function(d) {return 18 + d.id.length * 3;});
+
+        nodeEnter.append("text")
+            .attr("text-anchor", "middle")
+            .text(function(d) {return d.id});
+
+        node.exit().remove();
+
+        force.on("tick", function() {
+          link.attr("x1", function(d) { return d.source.x; })
+              .attr("y1", function(d) { return d.source.y; })
+              .attr("x2", function(d) { return d.target.x; })
+              .attr("y2", function(d) { return d.target.y; });
+
+          node.attr("transform", function(d) { return "translate(" + d.x + "," + d.y + ")"; });
+          node.attr("opacity", function(d) { return d.health/100; });
+          node.selectAll("circle").style("fill",
+                        function(d) {
+                          return colourFromCPUUsage(d.load);
+                        });
+        });
+
+        // Restart the force layout.
+        force.start();
+    }
+
+    this.updateLabel = function (text) {
+      label.transition()
+           .duration(100)
+           .text(text)
+    }
+
+    this.loadFrame = function (frame) {
+      // Firstly, update the label.
+      this.timestamp = frame["timestamp"];
+      this.index = frame["index"];
+
+      links.splice(0, links.length);
+      update();
+      for (i = 0; i < frame.nodes.length; i++) {
+        existing = this.findNode(frame.nodes[i].name);
+        if (existing === undefined) {
+          this.addNode(frame.nodes[i].name, false, frame.nodes[i].load);
+        } else {
+          existing.load = frame.nodes[i].load;
+        }
+      }
+
+      var i = 0;
+      while (i < nodes.length) {
+        var found = false;
+        nodes[i].active = false;
+        for (j = 0; j < frame.nodes.length; j++) {
+          if (frame.nodes[j].name == nodes[i].id) {
+            nodes[i].health = 100;
+            nodes[i].active = true;
+          }
+        }
+        i++;
+      }
+
+      for (i = 0; i < frame.links.length; i++) {
+        var l = frame.links[i]
+        this.addLink(l.source, l.target, l.value, false)
+      }
+      update();
+    }
+
+    // Function to go through all nodes and decrement their health.
+    // Removes them in health drops to 0.
+    this.check_nodes = function() {
+      var to_destroy = [];
+      var start_force = false;
+      for (i = 0; i < nodes.length; i++) {
+        var n = nodes[i];
+        if (n.active) {
+          continue;
+        }
+        n.health -= 1;
+        if (n.health <= 0) {
+          to_destroy.push(n.id);
+        }
+        // We changed a node health, so kick the force graph so it recalculates charge.
+        start_force = true;
+      }
+
+      for (i = 0; i < to_destroy.length; i++) {
+        this.removeNode(to_destroy[i]);
+      }
+
+      if (start_force) force.start();
+    }
+
+    // Make it all go
+    update();
+}
+
+graph = new myGraph("#graph");
+
+// Websocket connection
+function connect() {
+  var prefix = 'ws://';
+  var host = window.location.host;
+  host = "centosvm-rpn:9999"
+  var path = ''
+  var url = prefix.concat(host.concat(path));
+  console.log("Connecting to: " + url);
+  connection = new WebSocket(url);
+  connection.onopen = function(){
+    console.log("Connection open!");
+    graph.updateLabel("Connected");
+  }
+
+  connection.onmessage = function(e){
+  var message = e.data;
+  var data = JSON.parse(message);
+  graph.loadFrame(data)
+  }
+
+  connection.onerror = function(e){
+    console.log(e);
+  }
+
+  connection.onclose = function(e){
+    console.log("Connection closed. Will attempt reconnect in 1 second.");
+    graph.updateLabel("Not connected");
+    reconnectTimer = setTimeout(connect, 1000);
+  }
+}
+
+// Constant timer to slowly kill nodes.
+function tick() {
+  graph.check_nodes();
+  setTimeout(tick, 30);
+}
+setTimeout(tick, 30);
+
+connect();
+
+</script>
+</body>

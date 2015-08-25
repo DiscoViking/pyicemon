@@ -1,100 +1,156 @@
 # Monitor an icecream server.
 from __future__ import print_function
 
-import socket
 import sys
-import messages
-import struct
 import logging
 
-log = logging.getLogger("monitor")
+import messages
+from connection import Connection
+from publisher import Publisher
+
+log = logging.getLogger(__name__)
 log.addHandler(logging.NullHandler())
 
 
+class CS(object):
+    def __init__(self, id, name, ip, maxjobs):
+        self.id = id
+        self.name = name
+        self.ip = ip
+        self.maxjobs = maxjobs
+        self.active_jobs = 0
+
+    def __str__(self):
+        return "[CS {c.id}] {c.name} : {c.ip}".format(c=self)
+
+
+class Job(object):
+    def __init__(self, id, filename, client_id, local=False):
+        self.id = id
+        self.filename = filename
+        self.client_id = client_id
+        self.host_id = 0
+        self.local = local
+
+    def __str__(self):
+        return (
+            "[Job {j.id}] {j.client_id} -> {j.host_id} : {j.filename}"
+        ).format(j=self)
+
+
 class Monitor(object):
-    CHUNK_SIZE = 2048
-    input_buf = ""
-
-    def __init__(self):
+    def __init__(self, host, port=8765):
         self.socket = None
-        self.server_host = ""
-        self.server_port = 0
-
-    def connect(self, host, port):
-        self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.socket.connect((host, port))
         self.server_host = host
         self.server_port = port
-        log.debug("Sending protocol version 22")
-        self.socket.send("\x22\x00\x00\x00")
-        log.debug("Receiving protocol version")
-        assert(self.socket.recv(4) == "\x22\x00\x00\x00")
-        log.debug("Sending protocol version 22")
-        self.socket.send("\x22\x00\x00\x00")
+        self.conn = Connection(host, port)
+        self.conn.send_message(messages.LoginMessage())
 
-    def send(self, s):
-        log.debug("Sending:\n{0}".format(':'.join(x.encode('hex') for x in s)))
-        totalsent = 0
-        while totalsent < len(s):
-            sent = self.socket.send(s[totalsent:])
-            if sent == 0:
-                return
-            totalsent += sent
+        self.cs = {}
+        self.jobs = {}
 
-    def send_message(self, msg):
-        msg_string = msg.pack()
-        self.send(struct.pack("!LL", len(msg_string), msg.msg_type) +
-                  msg_string)
+        self.pub = Publisher()
 
-    def recv_chunk(self):
-        msg = self.socket.recv(self.CHUNK_SIZE)
-        self.input_buf += msg
-        return len(msg)
-
-    def receive(self, n):
-        while len(self.input_buf) < n:
-            self.recv_chunk()
-        s, self.input_buf = self.input_buf[:n], self.input_buf[n:]
-        log.debug("Received:\n{0}".format(':'.join(x.encode('hex') for x in s)))
-        return s
-
-    def receive_until_null(self):
-        i = 0
+    def run(self):
         while True:
-            if i < len(self.input_buf) and self.input_buf[i] == '\x00':
-                break
+            msg = self.conn.get_message()
 
-            i += 1
-            if i >= len(self.input_buf):
-                amount_read = 0
-                while amount_read == 0:
-                    amount_read = self.recv_chunk()
-                    log.info("Read {0} bytes.".format(amount_read))
+            if isinstance(msg, messages.StatsMessage):
+                self.handleStats(msg)
+            elif isinstance(msg, messages.GetCSMessage):
+                self.handleGetCS(msg)
+            elif isinstance(msg, messages.JobBeginMessage):
+                self.handleJobBegin(msg)
+            elif isinstance(msg, messages.JobDoneMessage):
+                self.handleJobDone(msg)
+            elif isinstance(msg, messages.LocalJobBeginMessage):
+                self.handleLocalJobBegin(msg)
+            elif isinstance(msg, messages.LocalJobDoneMessage):
+                self.handleLocalJobDone(msg)
+            else:
+                print("Not handling message:")
+                print(msg)
+                print("")
 
-        s, self.input_buf = self.input_buf[:i+1], self.input_buf[i+1:]
-        return s
+            self.pub.publish(self)
 
-    def get_message(self):
-        length = struct.unpack("!L", self.receive(4))[0]
+    def handleStats(self, msg):
+        if ("State" in msg.data and msg.data["State"] == "Offline"):
+            # Destroy this CS if we have it.
+            if msg.host_id in self.cs.iterkeys():
+                log.info(
+                    "({0}) went offline.".format(self.cs[msg.host_id]))
+                del self.cs[msg.host_id]
+            return
 
-        log.debug("Receiving message of length {0}".format(length))
+        # Updating/Creating a CS.
+        name = msg.data["Name"]
+        ip = msg.data["IP"]
+        maxjobs = int(msg.data["MaxJobs"])
+        cs = CS(msg.host_id, name, ip, maxjobs)
 
-        msg = self.receive(length)
+        if msg.host_id not in self.cs.iterkeys():
+            log.info("New CS ({0}) came online.".format(cs))
 
-        return messages.unpack(msg)
+        self.cs[msg.host_id] = cs
+
+    def handleGetCS(self, msg):
+        job = Job(msg.job_id, msg.filename, msg.client_id)
+        log.info("New job {0}".format(job))
+        self.jobs[job.id] = job
+
+    def handleJobBegin(self, msg):
+        if msg.job_id not in self.jobs:
+            log.warn("JobBegin received for unknown job {0}."
+                     .format(msg.job_id))
+            return
+
+        job = self.jobs[msg.job_id]
+        job.host_id = msg.host_id
+        log.info("Updated job: {0}".format(job))
+
+        if job.host_id in self.cs:
+            self.cs[job.host_id].active_jobs += 1
+
+    def handleJobDone(self, msg):
+        if msg.job_id not in self.jobs:
+            log.warn("JobDone received for unknown job {0}."
+                     .format(msg.job_id))
+            return
+
+        job = self.jobs[msg.job_id]
+        log.info("Deleting job {0}.".format(job))
+        del self.jobs[msg.job_id]
+
+        if job.host_id in self.cs:
+            self.cs[job.host_id].active_jobs -= 1
+
+    def handleLocalJobBegin(self, msg):
+        job = Job(msg.job_id, msg.filename, msg.client_id, local=True)
+        job.host_id = msg.client_id
+        log.info("Created local job: {0}".format(job))
+        self.jobs[job.id] = job
+
+        if job.host_id in self.cs:
+            self.cs[job.client_id].active_jobs += 1
+
+    def handleLocalJobDone(self, msg):
+        if msg.job_id not in self.jobs:
+            log.warn("LocalJobDone received for unknown job {0}."
+                     .format(msg.job_id))
+            return
+
+        job = self.jobs[msg.job_id]
+        log.info("Deleting local job {0}.".format(job))
+        del self.jobs[msg.job_id]
+
+        if job.host_id in self.cs:
+            self.cs[job.client_id].active_jobs -= 1
 
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.WARN)
 
     host, port = sys.argv[1], sys.argv[2]
-    mon = Monitor()
-    mon.connect(host, int(port))
-
-    # Login
-    mon.send_message(messages.LoginMessage())
-    mon.receive(4)
-    while True:
-        msg = mon.get_message()
-        print(msg)
-        print("")
+    mon = Monitor(host, int(port))
+    mon.run()

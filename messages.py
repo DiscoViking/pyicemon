@@ -78,23 +78,23 @@ class StatsMessage(Message):
 
 # Local Job Begin message.
 # Send Scheduler -> Monitor to report start of a local job.
-# Format is <job_id><time><host_id>[filename]
+# Format is <client_id><job_id><time>[filename]
 class LocalJobBeginMessage(Message):
     byte_format = "!LLL"
     msg_type = 0x56
 
-    def __init__(self, job_id, host_id, time, filename):
+    def __init__(self, job_id, client_id, time, filename):
         self.job_id = job_id
-        self.host_id = host_id
+        self.client_id = client_id
         self.time = time
         self.filename = filename
 
     def pack(self):
         return (
             struct.pack(self.byte_format,
+                        self.client_id,
                         self.job_id,
-                        self.time,
-                        self.host_id) +
+                        self.time) +
             self.filename + "\x00"
         )
 
@@ -102,20 +102,41 @@ class LocalJobBeginMessage(Message):
     def unpack(cls, string):
         hdr_len = struct.calcsize(cls.byte_format)
 
-        (job_id,
-         time,
-         host_id) = struct.unpack(cls.byte_format,
-                                  string[:hdr_len])
+        (client_id,
+         job_id,
+         time) = struct.unpack(cls.byte_format,
+                               string[:hdr_len])
 
         filename, remainder = cls.unpack_string(string[hdr_len:])
         assert(not remainder)
 
-        return LocalJobBeginMessage(job_id, time, host_id, filename)
+        return LocalJobBeginMessage(job_id, client_id, time, filename)
 
     def __str__(self):
-        return "[LOCAL JOB BEGIN] id = {0}, host = {1}, time = {2}\n{3}".format(
-            self.job_id, self.host_id, self.time, self.filename)
+        return (
+            "[LOCAL JOB BEGIN] id = {0}, client = {1}, time = {2}\n{3}"
+        ).format(self.job_id, self.client_id, self.time, self.filename)
 
+
+# LocalJobDone message.
+# Indicates that a local job has been completed.
+# Format is <job_id>
+class LocalJobDoneMessage(Message):
+    msg_type = 0x4f
+
+    def __init__(self, job_id):
+        self.job_id = job_id
+
+    def pack(self):
+        return struct.pack("!L", self.job_id)
+
+    @classmethod
+    def unpack(cls, string):
+        (job_id,) = struct.unpack("!L", string)
+        return LocalJobDoneMessage(job_id)
+
+    def __str__(self):
+        return "[LOCAL JOB DONE] id = {0}".format(self.id)
 
 # GetCS message.
 # Indicates that a client has requested a CS to build the mentioned file.
@@ -229,6 +250,7 @@ msg_types = {
     LoginMessage.msg_type: LoginMessage,
     StatsMessage.msg_type: StatsMessage,
     LocalJobBeginMessage.msg_type: LocalJobBeginMessage,
+    LocalJobDoneMessage.msg_type: LocalJobDoneMessage,
     GetCSMessage.msg_type: GetCSMessage,
     JobBeginMessage.msg_type: JobBeginMessage,
     JobDoneMessage.msg_type: JobDoneMessage,
