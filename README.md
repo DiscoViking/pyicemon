@@ -88,3 +88,4 @@ mon.run() # Blocks forever.
 
   - Implement protocol negotiation and interoperability between different protocol versions.
   - Generally improve quality of web view.
+  - Automatic scheduler discovery.
