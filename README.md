@@ -17,9 +17,45 @@ Web front-end and framework for monitoring an icecream distributed build cluster
 
 **Message (and subclasses):** Represent a single message from the scheduler.  They each know how to decode themselves from wire-data.
 
+Usage:
+
+```python
+# Unpack a message from a byte string. (string must contain only exactly one message)
+m = messages.unpack(wire_data)
+
+# Pack message to a byte string.
+data = m.pack()
+```
+
 **Connection:** Handles a persistent connection to a scheduler.  Reads messages off the wire and returns them as parsed Message types.
 
+Usage:
+
+```python
+scheduler_host, scheduler_port = "scheduler.com", 9999
+
+# Open a connection to a server. (Also handles version negotiation)
+conn = Connection(scheduler_host, scheduler_port)
+
+# Send a message.
+m = messages.LoginMessage()
+conn.send_message(m)
+
+# Receive messages.
+while True:
+    m = conn.get_message()
+    print m
+```
+
 **Monitor:** Maintains a view of the current state of the cluster by reading messages from a Connection and updating itself accordingly.  Reports changes in cluster state to a Publisher.
+
+Usage:
+
+```python
+scheduler_host, scheduler_port = "scheduler.com", 9999
+mon = Monitor(scheduler_host, scheduler_port)
+mon.run() # Blocks forever.
+```
 
 **Publisher:** Publishes information about the cluster to an outside source.
 
