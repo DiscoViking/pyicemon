@@ -237,11 +237,19 @@ function myGraph(el) {
       if (start_force) force.start();
     }
 
+    this.resize = function() {
+      width = window.innerWidth, height = window.innerHeight;
+      vis.attr('width', width).attr('height', height);
+      force.size([width, height]).resume();
+    }
+
     // Make it all go
     update();
 }
 
 graph = new myGraph("#graph");
+
+window.onresize = function() { graph.resize(); };
 
 // Websocket connection
 function connect() {
