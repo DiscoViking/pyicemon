@@ -29,6 +29,8 @@ Then open visage.html in your browser.
 Usage:
 
 ```python
+from pyicemon import messages
+
 # Unpack a message from a byte string. (string must contain only exactly one message)
 m = messages.unpack(wire_data)
 
@@ -41,10 +43,13 @@ data = m.pack()
 Usage:
 
 ```python
+import pyicemon
+from pyicemon import messages
+
 scheduler_host, scheduler_port = "scheduler.com", 9999
 
 # Open a connection to a server. (Also handles version negotiation)
-conn = Connection(scheduler_host, scheduler_port)
+conn = pyicemon.Connection(scheduler_host, scheduler_port)
 
 # Send a message.
 m = messages.LoginMessage()
@@ -61,8 +66,10 @@ while True:
 Usage:
 
 ```python
+import pyicemon
+
 scheduler_host, scheduler_port = "scheduler.com", 9999
-mon = Monitor(scheduler_host, scheduler_port)
+mon = pyicemon.Monitor(scheduler_host, scheduler_port)
 mon.run() # Blocks forever.
 ```
 
