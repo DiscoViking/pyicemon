@@ -6,7 +6,7 @@ import logging
 
 import messages
 from connection import Connection
-from publisher import Publisher
+from publisher import WebsocketPublisher
 
 log = logging.getLogger(__name__)
 log.addHandler(logging.NullHandler())
@@ -49,7 +49,10 @@ class Monitor(object):
         self.cs = {}
         self.jobs = {}
 
-        self.pub = Publisher()
+        self.publishers = []
+
+    def addPublisher(self, p):
+        self.publishers.append(p)
 
     def run(self):
         while True:
@@ -72,7 +75,8 @@ class Monitor(object):
                 print(msg)
                 print("")
 
-            self.pub.publish(self)
+            for p in self.publishers:
+                p.publish(self)
 
     def handleStats(self, msg):
         if ("State" in msg.data and msg.data["State"] == "Offline"):
@@ -153,4 +157,5 @@ if __name__ == "__main__":
 
     host, port = sys.argv[1], sys.argv[2]
     mon = Monitor(host, int(port))
+    mon.addPublisher(WebsocketPublisher(port=9999))
     mon.run()

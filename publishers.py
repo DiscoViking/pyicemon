@@ -4,16 +4,16 @@ import threading
 from websocket_server import WebsocketServer
 
 
-class Publisher(object):
+class WebsocketPublisher(object):
     MIN_SEND_GAP_S = 0.1
 
-    def __init__(self):
+    def __init__(self, host="0.0.0.0", port=9999):
         self.frame = ""
         self.last_sent_frame = ""
         self.next_time_to_send = 0
         self.lock = threading.RLock()
         self.timer = None
-        self.ws_server = WebsocketServer(9999, host="0.0.0.0")
+        self.ws_server = WebsocketServer(port, host)
 
         def send_to_client(client, server):
             with self.lock:

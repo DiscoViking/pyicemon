@@ -46,7 +46,7 @@ Usage:
 import pyicemon
 from pyicemon import messages
 
-scheduler_host, scheduler_port = "scheduler.com", 9999
+scheduler_host, scheduler_port = "scheduler.com", 8765
 
 # Open a connection to a server. (Also handles version negotiation)
 conn = pyicemon.Connection(scheduler_host, scheduler_port)
@@ -67,9 +67,11 @@ Usage:
 
 ```python
 import pyicemon
+from pyicemon.publishers import WebsocketPublisher
 
-scheduler_host, scheduler_port = "scheduler.com", 9999
+scheduler_host, scheduler_port = "scheduler.com", 8765
 mon = pyicemon.Monitor(scheduler_host, scheduler_port)
+mon.addPublisher(WebsocketPublisher(port=9999))
 mon.run() # Blocks forever.
 ```
 
