@@ -1,5 +1,6 @@
 # pyicemon
-Web front-end and framework for monitoring an icecream distributed build cluster.
+
+Web front-end and framework for monitoring an icecream distributed build cluster. See [icecc/icecream](https://github.com/icecc/icecream).
 
 
 ## Usage
