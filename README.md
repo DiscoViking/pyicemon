@@ -2,6 +2,15 @@
 Web front-end and framework for monitoring an icecream distributed build cluster.
 
 
+## Usage
+
+Basic usage:
+
+    python monitor.py <scheduler_hostname> <scheduler_port>
+
+Then open visage.html in your browser.
+
+
 ## Status
 
 **Icemon API:** All messages implemented as protocol version 22.  Protocol version negotiation not supported.
