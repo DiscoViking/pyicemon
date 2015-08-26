@@ -11,6 +11,11 @@ Basic usage:
 Then open visage.html in your browser.
 
 
+## Dependencies
+
+**websocket-server** - `pip install websocket-server`
+
+
 ## Status
 
 **Icemon API:** All messages implemented as protocol version 22.  Protocol version negotiation not supported.
