@@ -112,10 +112,10 @@ function myGraph(el) {
 
     var force = d3.layout.force()
         .gravity(.04)
-        .distance(150)
-        .charge(function(d) { return -6 * d.health; })
+        .distance(200)
+        .charge(function(d) { return -8 * d.health; })
         .friction(0.8)
-        .linkStrength(0.5)
+        .linkStrength(0.1)
         .size([w, h]);
 
     var nodes = force.nodes(),
