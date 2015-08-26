@@ -26,15 +26,29 @@ class Publisher(object):
 
     def build_graph(self, mon):
         nodes = []
+        used_names = {}
+        def get_name(cs):
+            if cs.id in used_names.iterkeys():
+                return used_names[cs.id]
+
+            name = cs.name
+            ix = 0
+            while name in used_names.itervalues():
+                ix += 1
+                name = cs.name + "({0})".format(ix)
+
+            used_names[cs.id] = name
+            return name
+
         for cs in mon.cs.itervalues():
-            nodes.append({"name": cs.name, "load": (100*cs.active_jobs)/cs.maxjobs})
+            nodes.append({"name": get_name(cs), "load": (100*cs.active_jobs)/cs.maxjobs})
 
         links = []
         for job in mon.jobs.itervalues():
-            if job.host_id == 0:
+            if job.host_id not in mon.cs or job.client_id not in mon.cs:
                 continue
             c, s = mon.cs[job.client_id], mon.cs[job.host_id]
-            links.append({"source": c.name, "target": s.name, "value": 10})
+            links.append({"source": get_name(c), "target": get_name(s), "value": 10})
 
         frame = {
             "timestamp": 0,
