@@ -22,7 +22,7 @@ var frame_length_ms = 100;
 var width = 1600;
 var height = 800;
 
-function colourFromCPUUsage(usage) {
+var colourFromCPUUsage = function (usage) {
   // Load is a percentage.
   usage = usage / 100;
 
@@ -35,77 +35,23 @@ function colourFromCPUUsage(usage) {
 }
 
 function myGraph(el) {
-
-    // Add and remove elements on the graph object
-    this.addNode = function (id, do_update, load) {
-        if (typeof(do_update)==='undefined') do_update = true;
-        nodes.push({"id":id,
-                    "health": 100,
-                    "active": true,
-                    "x": width/2 - 100 + (200 * Math.random()),
-                    "y": height/2 - 100 + (200 * Math.random()),
-                    "load": load});
-        if (do_update) update();
-    }
-
-    this.removeNode = function (id, do_update) {
-        var i = 0;
-        var n = this.findNode(id);
-        if (typeof(do_update)==='undefined') do_update = true;
-
-        while (i < links.length) {
-            if ((links[i]['source'] === n)||(links[i]['target'] == n)) links.splice(i,1);
-            else i++;
-        }
-        var index = findNodeIndex(id);
-        if(index !== undefined) {
-            nodes.splice(index, 1);
-            if (do_update) update();
-        }
-    }
-
-    this.addLink = function (sourceId, targetId, value, do_update) {
-        var sourceNode = this.findNode(sourceId);
-        var targetNode = this.findNode(targetId);
-        if (typeof(do_update)==='undefined') do_update = true;
-
-        if((sourceNode !== undefined) && (targetNode !== undefined)) {
-            links.push({"source": sourceNode,
-                        "target": targetNode,
-                        "value": value});
-            if (do_update) update();
-        }
-    }
-
-    this.findNode = function (id) {
-        for (var i=0; i < nodes.length; i++) {
-            if (nodes[i].id === id)
-                return nodes[i]
-        };
-    }
-
-    var findNodeIndex = function (id) {
-        for (var i=0; i < nodes.length; i++) {
-            if (nodes[i].id === id)
-                return i
-        };
-    }
+    // Private variables.
 
     // set up the D3 visualisation in the specified element
     var w = width;
         h = height;
 
-    var vis = this.vis = d3.select(el).append("svg:svg")
+    var vis = d3.select(el).append("svg:svg")
         .attr("width", w)
         .attr("height", h);
 
-    var link_layer = this.link_layer = vis.append("g").attr("class", "links");
-    var node_layer = this.node_layer = vis.append("g").attr("class", "nodes");
+    var link_layer = vis.append("g").attr("class", "links");
+    var node_layer = vis.append("g").attr("class", "nodes");
 
     // label to show data about the frame
-    var index = this.index = 0;
-    var timestamp = this.timestamp = 0;
-    var label = this.label = vis.append("text")
+    var index = 0;
+    var timestamp = 0;
+    var label = vis.append("text")
         .attr("x", "20")
         .attr("y", "20")
         .text("Not connected");
@@ -121,6 +67,68 @@ function myGraph(el) {
     var nodes = force.nodes(),
         links = force.links();
 
+    // Methods.
+
+    // Add and remove elements on the graph object
+    var addNode = function (id, do_update, load) {
+        if (typeof(do_update)==='undefined') do_update = true;
+        nodes.push({"id":id,
+                    "health": 100,
+                    "active": true,
+                    "x": width/2 - 100 + (200 * Math.random()),
+                    "y": height/2 - 100 + (200 * Math.random()),
+                    "load": load});
+        if (do_update) update();
+    }
+    this.addNode = addNode;
+
+    var removeNode = function (id, do_update) {
+        var i = 0;
+        var n = findNode(id);
+        if (typeof(do_update)==='undefined') do_update = true;
+
+        while (i < links.length) {
+            if ((links[i]['source'] === n)||(links[i]['target'] == n)) links.splice(i,1);
+            else i++;
+        }
+        var index = findNodeIndex(id);
+        if(index !== undefined) {
+            nodes.splice(index, 1);
+            if (do_update) update();
+        }
+    }
+    this.removeNode = removeNode;
+
+    var addLink = function (sourceId, targetId, value, do_update) {
+        var sourceNode = findNode(sourceId);
+        var targetNode = findNode(targetId);
+        if (typeof(do_update)==='undefined') do_update = true;
+
+        if((sourceNode !== undefined) && (targetNode !== undefined)) {
+            links.push({"source": sourceNode,
+                        "target": targetNode,
+                        "value": value});
+            if (do_update) update();
+        }
+    }
+    this.addLink = addLink;
+
+    var findNode = function (id) {
+        for (var i=0; i < nodes.length; i++) {
+            if (nodes[i].id === id)
+                return nodes[i]
+        };
+    }
+    this.findNode = findNode
+
+    var findNodeIndex = function (id) {
+        for (var i=0; i < nodes.length; i++) {
+            if (nodes[i].id === id)
+                return i
+        };
+    }
+
+    // Does all the main work updating the screen.
     var update = function () {
 
         var link = link_layer.selectAll("line.link")
@@ -170,23 +178,26 @@ function myGraph(el) {
         force.start();
     }
 
-    this.updateLabel = function (text) {
+    // Update text at top of screen.
+    var updateLabel = function (text) {
       label.transition()
            .duration(100)
            .text(text)
     }
+    this.updateLabel = updateLabel;
 
-    this.loadFrame = function (frame) {
+    // Load graph from given frame object.
+    var loadFrame = function (frame) {
       // Firstly, update the label.
-      this.timestamp = frame["timestamp"];
-      this.index = frame["index"];
+      timestamp = frame["timestamp"];
+      index = frame["index"];
 
       links.splice(0, links.length);
       update();
       for (i = 0; i < frame.nodes.length; i++) {
-        existing = this.findNode(frame.nodes[i].name);
+        existing = findNode(frame.nodes[i].name);
         if (existing === undefined) {
-          this.addNode(frame.nodes[i].name, false, frame.nodes[i].load);
+          addNode(frame.nodes[i].name, false, frame.nodes[i].load);
         } else {
           existing.load = frame.nodes[i].load;
         }
@@ -207,14 +218,15 @@ function myGraph(el) {
 
       for (i = 0; i < frame.links.length; i++) {
         var l = frame.links[i]
-        this.addLink(l.source, l.target, l.value, false)
+        addLink(l.source, l.target, l.value, false)
       }
       update();
     }
+    this.loadFrame = loadFrame;
 
     // Function to go through all nodes and decrement their health.
     // Removes them in health drops to 0.
-    this.check_nodes = function() {
+    var check_nodes = function() {
       var to_destroy = [];
       var start_force = false;
       for (i = 0; i < nodes.length; i++) {
@@ -231,25 +243,29 @@ function myGraph(el) {
       }
 
       for (i = 0; i < to_destroy.length; i++) {
-        this.removeNode(to_destroy[i]);
+        removeNode(to_destroy[i]);
       }
 
       if (start_force) force.start();
     }
+    this.check_nodes = check_nodes;
 
-    this.resize = function() {
+    // Resize graph to fill window.
+    resize = function() {
       width = window.innerWidth, height = window.innerHeight;
       vis.attr('width', width).attr('height', height);
       force.size([width, height]).resume();
     }
+    this.resize = resize;
 
     // Make it all go
     update();
 }
 
 graph = new myGraph("#graph");
+graph.resize();
 
-window.onresize = function() { graph.resize(); };
+window.onresize = graph.resize
 
 // Websocket connection
 function connect() {
