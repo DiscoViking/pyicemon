@@ -54,12 +54,12 @@ class StatsMessage(Message):
                 self.data[vals[0].decode()] = vals[1].decode()
 
     def pack(self):
-        body = b'\n'.join(b':'.join(i.encode()) for i in self.data.iteritems())
+        body = b'\n'.join(b':'.join(map(lambda s: s.encode(), i)) for i in self.data.items())
         return (
-            struct.pack(self.byte_format,
+            struct.pack("!LL",
                         self.host_id,
                         len(body)) +
-            self.body +
+            body +
             b'\x00'
         )
 
@@ -72,7 +72,7 @@ class StatsMessage(Message):
         return StatsMessage(host_id, body)
 
     def __str__(self):
-        body = "\n".join(": ".join(i) for i in self.data.iteritems())
+        body = "\n".join(": ".join(i) for i in self.data.items())
         return "[STATS] host = {0}, \n{1}".format(self.host_id, body)
 
 
@@ -80,7 +80,6 @@ class StatsMessage(Message):
 # Send Scheduler -> Monitor to report start of a local job.
 # Format is <client_id><job_id><time>[filename]
 class LocalJobBeginMessage(Message):
-    byte_format = "!LLL"
     msg_type = 0x56
 
     def __init__(self, job_id, client_id, time, filename):
@@ -91,20 +90,22 @@ class LocalJobBeginMessage(Message):
 
     def pack(self):
         return (
-            struct.pack(self.byte_format,
+            struct.pack("!LLLL",
                         self.client_id,
                         self.job_id,
-                        self.time) +
-            self.filename + "\x00"
+                        self.time,
+                        len(self.filename)) +
+            self.filename +
+            b'\x00'
         )
 
     @classmethod
     def unpack(cls, string):
-        hdr_len = struct.calcsize(cls.byte_format)
+        hdr_len = struct.calcsize("!LLL")
 
         (client_id,
          job_id,
-         time) = struct.unpack(cls.byte_format,
+         time) = struct.unpack("!LLL",
                                string[:hdr_len])
 
         filename, remainder = cls.unpack_string(string[hdr_len:])
