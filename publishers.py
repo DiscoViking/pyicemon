@@ -28,27 +28,35 @@ class WebsocketPublisher(object):
         nodes = []
         used_names = {}
         def get_name(cs):
-            if cs.id in used_names.iterkeys():
+            if cs.id in used_names.keys():
                 return used_names[cs.id]
 
             name = cs.name
             ix = 0
-            while name in used_names.itervalues():
+            while name in used_names.values():
                 ix += 1
                 name = cs.name + "({0})".format(ix)
 
             used_names[cs.id] = name
             return name
 
-        for cs in mon.cs.itervalues():
+        for cs in mon.cs.values():
             nodes.append({"name": get_name(cs), "load": (100*cs.active_jobs)/cs.maxjobs})
 
         links = []
-        for job in mon.jobs.itervalues():
+        for job in mon.jobs.values():
             if job.host_id not in mon.cs or job.client_id not in mon.cs:
                 continue
             c, s = mon.cs[job.client_id], mon.cs[job.host_id]
-            links.append({"source": get_name(c), "target": get_name(s), "value": 10})
+
+            # Don't double-add links.
+            add = True
+            for l in links:
+                if l["source"] == get_name(c) and l["target"] == get_name(s):
+                    add = False
+
+            if add:
+                links.append({"source": get_name(c), "target": get_name(s), "value": 10})
 
         frame = {
             "timestamp": 0,

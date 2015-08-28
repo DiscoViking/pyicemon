@@ -6,7 +6,7 @@ import logging
 
 import messages
 from connection import Connection
-from publisher import WebsocketPublisher
+from publishers import WebsocketPublisher
 
 log = logging.getLogger(__name__)
 log.addHandler(logging.NullHandler())
@@ -81,7 +81,7 @@ class Monitor(object):
     def handleStats(self, msg):
         if ("State" in msg.data and msg.data["State"] == "Offline"):
             # Destroy this CS if we have it.
-            if msg.host_id in self.cs.iterkeys():
+            if msg.host_id in self.cs.keys():
                 log.info(
                     "({0}) went offline.".format(self.cs[msg.host_id]))
                 del self.cs[msg.host_id]
@@ -93,7 +93,7 @@ class Monitor(object):
         maxjobs = int(msg.data["MaxJobs"])
         cs = CS(msg.host_id, name, ip, maxjobs)
 
-        if msg.host_id not in self.cs.iterkeys():
+        if msg.host_id not in self.cs.keys():
             log.info("New CS ({0}) came online.".format(cs))
 
         self.cs[msg.host_id] = cs

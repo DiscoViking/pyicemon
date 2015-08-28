@@ -26,7 +26,7 @@ class LoginMessage(Message):
     msg_type = 0x52
 
     def pack(self):
-        return ""
+        return b''
 
     @classmethod
     def unpack(cls, string):
@@ -48,19 +48,19 @@ class StatsMessage(Message):
 
     def parse_body(self, body):
         self.data = OrderedDict()
-        for l in body.split("\n"):
-            vals = l.split(":")
+        for l in body.split(b'\n'):
+            vals = l.split(b':')
             if len(vals) == 2:
-                self.data[vals[0]] = vals[1]
+                self.data[vals[0].decode()] = vals[1].decode()
 
     def pack(self):
-        body = "\n".join(":".join(i) for i in self.data.iteritems())
+        body = b'\n'.join(b':'.join(i.encode()) for i in self.data.iteritems())
         return (
             struct.pack(self.byte_format,
                         self.host_id,
                         len(body)) +
             self.body +
-            "\x00"
+            b'\x00'
         )
 
     @classmethod
