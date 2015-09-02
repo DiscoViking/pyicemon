@@ -34,6 +34,7 @@ class WebsocketPublisher(object):
         for cs in mon.cs.values():
             nodes.append({"id": cs.id,
                           "name": cs.name,
+                          "ip": cs.ip,
                           "load": (100*cs.active_jobs)/cs.maxjobs})
 
         return json.dumps(nodes)
