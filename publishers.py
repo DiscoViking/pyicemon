@@ -26,22 +26,11 @@ class WebsocketPublisher(object):
 
     def build_graph(self, mon):
         nodes = []
-        used_names = {}
-        def get_name(cs):
-            if cs.id in used_names.keys():
-                return used_names[cs.id]
-
-            name = cs.name
-            ix = 0
-            while name in used_names.values():
-                ix += 1
-                name = cs.name + "({0})".format(ix)
-
-            used_names[cs.id] = name
-            return name
 
         for cs in mon.cs.values():
-            nodes.append({"name": get_name(cs), "load": (100*cs.active_jobs)/cs.maxjobs})
+            nodes.append({"id": cs.id,
+                          "name": cs.name,
+                          "load": (100*cs.active_jobs)/cs.maxjobs})
 
         links = []
         for job in mon.jobs.values():
@@ -52,11 +41,11 @@ class WebsocketPublisher(object):
             # Don't double-add links.
             add = True
             for l in links:
-                if l["source"] == get_name(c) and l["target"] == get_name(s):
+                if l["source"] == c.id and l["target"] == s.id:
                     add = False
 
             if add:
-                links.append({"source": get_name(c), "target": get_name(s), "value": 10})
+                links.append({"source": c.id, "target": s.id, "value": 10})
 
         frame = {
             "timestamp": 0,

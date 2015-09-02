@@ -70,9 +70,10 @@ function myGraph(el) {
     // Methods.
 
     // Add and remove elements on the graph object
-    var addNode = function (id, do_update, load) {
+    var addNode = function (id, name, do_update, load) {
         if (typeof(do_update)==='undefined') do_update = true;
-        nodes.push({"id":id,
+        nodes.push({"id": id,
+                    "name": name,
                     "health": 100,
                     "active": true,
                     "x": width/2 - 100 + (200 * Math.random()),
@@ -140,8 +141,6 @@ function myGraph(el) {
             .attr("stroke-opacity", 0.5)
             .attr("stroke-width", function(d) {return Math.sqrt(d.value);});
 
-        link.append("title").text(function(d) {return d.value;});
-
         link.exit().remove();
 
         var node = node_layer.selectAll("g.node")
@@ -152,11 +151,13 @@ function myGraph(el) {
             .call(force.drag);
 
         nodeEnter.append("circle")
-          .attr("r",function(d) {return 18 + d.id.length * 3;});
+          .attr("r",function(d) {return 18 + d.name.length * 3;});
 
         nodeEnter.append("text")
             .attr("text-anchor", "middle")
-            .text(function(d) {return d.id});
+            .text(function(d) {return d.name});
+
+        nodeEnter.append("title").text(function(d) {return d.id;});
 
         node.exit().remove();
 
@@ -195,9 +196,12 @@ function myGraph(el) {
       links.splice(0, links.length);
       update();
       for (i = 0; i < frame.nodes.length; i++) {
-        existing = findNode(frame.nodes[i].name);
+        existing = findNode(frame.nodes[i].id);
         if (existing === undefined) {
-          addNode(frame.nodes[i].name, false, frame.nodes[i].load);
+          addNode(frame.nodes[i].id,
+                  frame.nodes[i].name,
+                  false,
+                  frame.nodes[i].load);
         } else {
           existing.load = frame.nodes[i].load;
         }
@@ -208,7 +212,7 @@ function myGraph(el) {
         var found = false;
         nodes[i].active = false;
         for (j = 0; j < frame.nodes.length; j++) {
-          if (frame.nodes[j].name == nodes[i].id) {
+          if (frame.nodes[j].id == nodes[i].id) {
             nodes[i].health = 100;
             nodes[i].active = true;
           }
@@ -308,4 +312,5 @@ setTimeout(tick, 30);
 connect();
 
 </script>
+
 </body>
