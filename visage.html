@@ -194,7 +194,6 @@ function myGraph(el) {
       index = frame["index"];
 
       links.splice(0, links.length);
-      update();
       for (i = 0; i < frame.nodes.length; i++) {
         existing = findNode(frame.nodes[i].id);
         if (existing === undefined) {
@@ -224,6 +223,7 @@ function myGraph(el) {
         var l = frame.links[i]
         addLink(l.source, l.target, l.value, false)
       }
+
       update();
     }
     this.loadFrame = loadFrame;
