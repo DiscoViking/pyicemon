@@ -193,35 +193,35 @@ function myGraph(el) {
       timestamp = frame["timestamp"];
       index = frame["index"];
 
-      links.splice(0, links.length);
-      for (i = 0; i < frame.nodes.length; i++) {
-        existing = findNode(frame.nodes[i].id);
-        if (existing === undefined) {
-          addNode(frame.nodes[i].id,
-                  frame.nodes[i].name,
-                  false,
-                  frame.nodes[i].load);
-        } else {
-          existing.load = frame.nodes[i].load;
+      // Update nodes if present in message.
+      if (frame.nodes) {
+        for (i = 0; i < nodes.length; i++) {
+          nodes[i].active = false;
         }
-      }
 
-      var i = 0;
-      while (i < nodes.length) {
-        var found = false;
-        nodes[i].active = false;
-        for (j = 0; j < frame.nodes.length; j++) {
-          if (frame.nodes[j].id == nodes[i].id) {
-            nodes[i].health = 100;
-            nodes[i].active = true;
+        for (i = 0; i < frame.nodes.length; i++) {
+          existing = findNode(frame.nodes[i].id);
+          if (existing === undefined) {
+            addNode(frame.nodes[i].id,
+                    frame.nodes[i].name,
+                    false,
+                    frame.nodes[i].load);
+          } else {
+            existing.load = frame.nodes[i].load;
+            existing.health = 100;
+            existing.active = true;
           }
         }
-        i++;
       }
 
-      for (i = 0; i < frame.links.length; i++) {
-        var l = frame.links[i]
-        addLink(l.source, l.target, l.value, false)
+      // Update links if present in message.
+      if (frame.links) {
+        links.splice(0, links.length);
+
+        for (i = 0; i < frame.links.length; i++) {
+          var l = frame.links[i]
+          addLink(l.source, l.target, l.value, false)
+        }
       }
 
       update();
