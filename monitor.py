@@ -20,7 +20,7 @@ class CS(object):
         self.name = name
         self.ip = ip
         self.maxjobs = maxjobs
-        self.active_jobs = 0
+        self.active_jobs = []
 
     def __str__(self):
         return "[CS {c.id}] {c.name} : {c.ip}".format(c=self)
@@ -146,7 +146,7 @@ class Monitor(object):
         log.info("Updated job: {0}".format(job))
 
         if job.host_id in self.cs:
-            self.cs[job.host_id].active_jobs += 1
+            self.cs[job.host_id].active_jobs.append(job.id)
 
     def handleJobDone(self, msg):
         """
@@ -164,7 +164,9 @@ class Monitor(object):
         del self.jobs[msg.job_id]
 
         if job.host_id in self.cs:
-            self.cs[job.host_id].active_jobs -= 1
+            cs = self.cs[job.host_id]
+            if job.id in cs.active_jobs:
+                cs.active_jobs.remove(job.id)
 
     def handleLocalJobBegin(self, msg):
         """
@@ -181,7 +183,7 @@ class Monitor(object):
         self.jobs[job.id] = job
 
         if job.host_id in self.cs:
-            self.cs[job.client_id].active_jobs += 1
+            self.cs[job.client_id].active_jobs.append(job.id)
 
     def handleLocalJobDone(self, msg):
         """
@@ -199,7 +201,9 @@ class Monitor(object):
         del self.jobs[msg.job_id]
 
         if job.host_id in self.cs:
-            self.cs[job.client_id].active_jobs -= 1
+            cs = self.cs[job.host_id]
+            if job.id in cs.active_jobs:
+                cs.active_jobs.remove(job.id)
 
 
 if __name__ == "__main__":
