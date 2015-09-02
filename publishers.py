@@ -9,7 +9,11 @@ class WebsocketPublisher(object):
 
     def __init__(self, host="0.0.0.0", port=9999):
         self.frame = ""
+        self.nodes = ""
+        self.links = ""
         self.last_sent_frame = ""
+        self.last_sent_nodes = ""
+        self.last_sent_links = ""
         self.next_time_to_send = 0
         self.lock = threading.RLock()
         self.timer = None
@@ -17,14 +21,14 @@ class WebsocketPublisher(object):
 
         def send_to_client(client, server):
             with self.lock:
-                server.send_message(client, self.frame)
+                server.send_message(client, self.build_graph(True))
 
         self.ws_server.set_fn_new_client(send_to_client)
         t = threading.Thread(target=self.ws_server.run_forever)
         t.daemon = True
         t.start()
 
-    def build_graph(self, mon):
+    def build_nodes(self, mon):
         nodes = []
 
         for cs in mon.cs.values():
@@ -32,6 +36,9 @@ class WebsocketPublisher(object):
                           "name": cs.name,
                           "load": (100*cs.active_jobs)/cs.maxjobs})
 
+        return json.dumps(nodes)
+
+    def build_links(self, mon):
         links = []
         for job in mon.jobs.values():
             if job.host_id not in mon.cs or job.client_id not in mon.cs:
@@ -47,18 +54,26 @@ class WebsocketPublisher(object):
             if add:
                 links.append({"source": c.id, "target": s.id, "value": 10})
 
-        frame = {
-            "timestamp": 0,
-            "index": 0,
-            "nodes": nodes,
-            "links": links,
-        }
+        return json.dumps(links)
 
-        return json.dumps(frame)
+    def build_graph(self, full=False):
+        frame = '{"timestamp": 0, "index": 0'
+
+        if full or self.nodes != self.last_sent_nodes:
+            frame += ', "nodes": ' + self.nodes
+
+        if full or self.links != self.last_sent_links:
+            frame += ', "links": ' + self.links
+
+        frame += '}'
+
+        return frame
 
     def publish(self, mon):
         with self.lock:
-            self.frame = self.build_graph(mon)
+            self.nodes = self.build_nodes(mon)
+            self.links = self.build_links(mon)
+            self.frame = self.build_graph()
             self.notify()
 
     def notify(self):
@@ -83,4 +98,6 @@ class WebsocketPublisher(object):
             self.timer = None
             self.next_time_to_send = time.time() + self.MIN_SEND_GAP_S
             self.last_sent_frame = self.frame
+            self.last_sent_nodes = self.nodes
+            self.last_sent_links = self.links
             self.ws_server.send_message_to_all(self.frame)
