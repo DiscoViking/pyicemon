@@ -7,8 +7,9 @@ log = logging.getLogger(__name__)
 log.addHandler(logging.NullHandler())
 
 
-# Abstract message base class.
 class Message(object):
+    """Abstract message base class."""
+
     byte_format = ""
 
     @classmethod
@@ -19,10 +20,13 @@ class Message(object):
         return string, s
 
 
-# Login message.
-# Send Monitor -> Scheduler to register for notifications.
-# Format is <host_id><msg_type>
 class LoginMessage(Message):
+    """
+    Sent Monitor -> Scheduler to register for notifications.
+
+    Format is <host_id><msg_type>
+    """
+
     msg_type = 0x52
 
     def pack(self):
@@ -36,10 +40,13 @@ class LoginMessage(Message):
         return "[LOGIN]"
 
 
-# Stats message.
-# Send Scheduler -> Monitor to report detailed info for one CS.
-# Format is <host_id>[body]
 class StatsMessage(Message):
+    """
+    Contains detailed information about one CS.
+
+    Format is <host_id>[body]
+    """
+
     msg_type = 0x57
 
     def __init__(self, host_id, body):
@@ -76,10 +83,13 @@ class StatsMessage(Message):
         return "[STATS] host = {0}, \n{1}".format(self.host_id, body)
 
 
-# Local Job Begin message.
-# Send Scheduler -> Monitor to report start of a local job.
-# Format is <client_id><job_id><time>[filename]
 class LocalJobBeginMessage(Message):
+    """
+    Indicates a local job (e.g. linking) is starting.
+
+    Format is <client_id><job_id><time>[filename]
+    """
+
     msg_type = 0x56
 
     def __init__(self, job_id, client_id, time, filename):
@@ -119,10 +129,13 @@ class LocalJobBeginMessage(Message):
         ).format(self.job_id, self.client_id, self.time, self.filename)
 
 
-# LocalJobDone message.
-# Indicates that a local job has been completed.
-# Format is <job_id>
 class LocalJobDoneMessage(Message):
+    """
+    Indicates that a local job has been completed.
+
+    Format is <job_id>
+    """
+
     msg_type = 0x4f
 
     def __init__(self, job_id):
@@ -139,11 +152,14 @@ class LocalJobDoneMessage(Message):
     def __str__(self):
         return "[LOCAL JOB DONE] id = {0}".format(self.id)
 
-# GetCS message.
-# Indicates that a client has requested a CS to build the mentioned file.
-# Marks the creation of a new job.
-# Format is [filename]<lang><job_id><client_id>
 class GetCSMessage(Message):
+    """
+    Indicates that a client has requested a CS to build the mentioned file.
+
+    Marks the creation of a new job.
+    Format is [filename]<lang><job_id><client_id>
+    """
+
     msg_type = 0x53
 
     def __init__(self, filename, lang, job_id, client_id):
@@ -173,10 +189,13 @@ class GetCSMessage(Message):
             self.lang, self.job_id, self.client_id, self.filename)
 
 
-# JobBegin message.
-# Indicates that a compile job is starting on a host.
-# Format is <job_id><time><host_id>
 class JobBeginMessage(Message):
+    """
+    Indicates that a compile job is starting on a host.
+
+    Format is <job_id><time><host_id>
+    """
+
     msg_type = 0x54
 
     def __init__(self, job_id, time, host_id):
@@ -200,12 +219,15 @@ class JobBeginMessage(Message):
             self.job_id, self.host_id, self.time)
 
 
-# JobDone message.
-# Indicates that a compile job is finished.
-# Format is <job_id><exit_code><real_ms><user_ms><sys_ms><pfaults>
-#           <in_compressed><in_uncompressed><out_compressed><out_uncompressed>
-#           <flags>
 class JobDoneMessage(Message):
+    """
+    Indicates that a compile job is finished.
+
+    Format is <job_id><exit_code><real_ms><user_ms><sys_ms><pfaults>
+              <in_compressed><in_uncompressed><out_compressed><out_uncompressed>
+              <flags>
+    """
+
     msg_type = 0x55
     byte_format = "!LLLLLLLLLLL"
 
