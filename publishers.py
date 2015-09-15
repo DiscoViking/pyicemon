@@ -5,7 +5,16 @@ from websocket_server import WebsocketServer
 
 
 class WebsocketPublisher(object):
+    """
+    Publish cluster state as JSON over a websocket.
+
+    Only sends CS state, and information on who is building on who.
+    This is enough information to draw a graph of the cluster.
+    Explicitly, does not send information on individual jobs.
+    """
+
     MIN_SEND_GAP_S = 0.1
+    """Minimum gap in seconds between sending messages to connected clients."""
 
     def __init__(self, host="0.0.0.0", port=9999):
         self.frame = ""
@@ -29,6 +38,7 @@ class WebsocketPublisher(object):
         t.start()
 
     def build_nodes(self, mon):
+        """Builds a JSON representation of the CS nodes in the cluster."""
         nodes = []
 
         for cs in mon.cs.values():
@@ -40,6 +50,11 @@ class WebsocketPublisher(object):
         return json.dumps(nodes)
 
     def build_links(self, mon):
+        """
+        Builds a JSON representation of the links in the cluster.
+
+        There is one link A->B if A has one or more jobs building on B.
+        """
         links = []
         for job in mon.jobs.values():
             if job.host_id not in mon.cs or job.client_id not in mon.cs:
@@ -58,6 +73,7 @@ class WebsocketPublisher(object):
         return json.dumps(links)
 
     def build_graph(self, full=False):
+        """Builds a full JSON representation of a graph of the cluster."""
         frame = '{"timestamp": 0, "index": 0'
 
         if full or self.nodes != self.last_sent_nodes:
@@ -71,6 +87,11 @@ class WebsocketPublisher(object):
         return frame
 
     def publish(self, mon):
+        """
+        Called by the Monitor to indicate new cluster state.
+
+        Update our internal state, and notify clients if appropriate.
+        """
         with self.lock:
             self.nodes = self.build_nodes(mon)
             self.links = self.build_links(mon)
@@ -78,6 +99,7 @@ class WebsocketPublisher(object):
             self.notify()
 
     def notify(self):
+        """Send updates to clients if necessary."""
         now = time.time()
         with self.lock:
             if self.frame == self.last_sent_frame:
@@ -93,6 +115,7 @@ class WebsocketPublisher(object):
                 self.timer.start()
 
     def broadcast(self):
+        """Actually broadcast cluster state to all connected clients."""
         with self.lock:
             if self.timer is not None:
                 self.timer.cancel()
