@@ -54,11 +54,8 @@ class Monitor(object):
     whenever the state of the cluster changes.
     """
 
-    def __init__(self, host, port=8765):
-        self.socket = None
-        self.server_host = host
-        self.server_port = port
-        self.conn = Connection(host, port)
+    def __init__(self, conn):
+        self.conn = conn
         self.conn.send_message(messages.LoginMessage())
 
         self.cs = {}
@@ -209,6 +206,6 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.WARN)
 
     host, port = sys.argv[1], sys.argv[2]
-    mon = Monitor(host, int(port))
+    mon = Monitor(Connection(host, int(port)))
     mon.addPublisher(WebsocketPublisher(port=9999))
     mon.run()
