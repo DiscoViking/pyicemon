@@ -71,7 +71,7 @@ class TestMonitor(unittest.TestCase):
         m.handleJobDone(messages.JobDoneMessage(1, 0,
                                                 0, 0, 0, 0,     # We don't care
                                                 0, 0, 0, 0, 0)) # about these.
-        self.assertEqual(m.cs[101].active_jobs, 0)
+        self.assertEqual(m.cs[101].active_jobs(), 0)
 
 
 if __name__ == '__main__':
