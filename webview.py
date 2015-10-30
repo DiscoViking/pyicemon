@@ -1,7 +1,16 @@
 """Main module for pyicemon webview"""
 
-import SimpleHTTPServer
-import SocketServer
+# Handle difference in module name between python2/3.
+try:
+    from SimpleHTTPServer import SimpleHTTPRequestHandler
+except ImportError:
+    from http.server import SimpleHTTPRequestHandler
+
+try:
+    from SocketServer import TCPServer
+except ImportError:
+    from socketserver import TCPServer
+
 import threading
 import sys
 import os
@@ -17,8 +26,8 @@ if __name__ == "__main__":
 
     # Serve static HTTP content.
     os.chdir("static")
-    handler = SimpleHTTPServer.SimpleHTTPRequestHandler
-    httpd = SocketServer.TCPServer(("", PORT), handler)
+    handler = SimpleHTTPRequestHandler
+    httpd = TCPServer(("", PORT), handler)
     t = threading.Thread(target=httpd.serve_forever)
     t.daemon = True
     t.start()
