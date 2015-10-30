@@ -207,12 +207,3 @@ class Monitor(object):
             cs = self.cs[job.host_id]
             if job.id in cs._jobs:
                 cs._jobs.remove(job.id)
-
-
-if __name__ == "__main__":
-    logging.basicConfig(level=logging.WARN)
-
-    host, port = sys.argv[1], sys.argv[2]
-    mon = Monitor(Connection(host, int(port)))
-    mon.addPublisher(WebsocketPublisher(port=9999))
-    mon.run()
