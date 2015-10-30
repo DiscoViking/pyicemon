@@ -277,9 +277,8 @@ window.onresize = graph.resize
 function connect() {
   var prefix = 'ws://';
   var host = window.location.host;
-  host = "centosvm-rpn:9999"
-  var path = ''
-  var url = prefix.concat(host.concat(path));
+  port = 9999
+  var url = prefix + host + ":" + port
   console.log("Connecting to: " + url);
   connection = new WebSocket(url);
   connection.onopen = function(){
